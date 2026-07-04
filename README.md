@@ -1,1 +1,1 @@
-# agentic-commit-flagger
+# Agentic-Commit-Flagger
