@@ -1,0 +1,10 @@
+# single-node cluster is enough, the demo app is heavy and extra nodes just eat RAM
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # expose the demo app frontend on localhost:30080 without needing port-forward
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
