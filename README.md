@@ -2,8 +2,8 @@
 
 An autonomous incident-response agent that can track commit issues when outages occur
 
-When a monitoring alert fires, the agent investigates on its own: it reviews recent commits and their diffs, flags the most likely culprit with reasoning, pulls up the relevant runbook, estimates how many users are affected, and posts a concise incident brief to the team. Once the incident is resolved, it drafts a postmortem from its own record of what happened.
+When a monitoring alert fires, the agent investigates on its own: it will review recent commits and their diffs, flag the most likely culprit with reasoning, pull up the relevant runbook, estimate how many users are affected, and post a concise incident brief to the team. Once the incident is resolved, it will draft a postmortem report from its own record of what happened.
 
-It diagnoses and recommends — it never applies fixes. A human makes every remediation decision
+It diagnoses and recommends fixes but never implements them automatically
 
 Built and tested against a Kubernetes microservices environment where failures are deliberately injected to validate the agent's accuracy
