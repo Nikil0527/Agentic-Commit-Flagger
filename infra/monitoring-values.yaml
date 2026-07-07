@@ -1,0 +1,32 @@
+# kube-prometheus-stack trimmed down for a local kind cluster
+
+# kind hides these control-plane components from scraping, disable so we don't get dead targets
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+grafana:
+  adminPassword: admin
+
+prometheus:
+  prometheusSpec:
+    # pick up alert rules from anywhere in the cluster, not just ones the chart created
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    retention: 24h
+    resources:
+      requests:
+        cpu: 200m
+        memory: 400Mi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 100Mi
