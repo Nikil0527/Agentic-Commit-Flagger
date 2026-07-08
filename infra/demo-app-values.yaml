@@ -1,0 +1,20 @@
+# otel demo trimmed down - it ships its own observability tools, we already run our own
+
+opensearch:
+  enabled: false
+jaeger:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false
+
+components:
+  # reach the shop at localhost:30080 through the kind port mapping
+  frontend-proxy:
+    service:
+      type: NodePort
+    ports:
+      - name: tcp-service
+        value: 8080
+        nodePort: 30080

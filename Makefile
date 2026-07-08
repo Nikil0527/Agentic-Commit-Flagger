@@ -1,6 +1,6 @@
 CLUSTER_NAME = commit-flagger
 
-.PHONY: cluster-up cluster-down status monitoring grafana prometheus alertmanager
+.PHONY: cluster-up cluster-down status deploy monitoring grafana prometheus alertmanager
 
 cluster-up:
 	kind create cluster --name $(CLUSTER_NAME) --config infra/kind-config.yaml
@@ -11,6 +11,11 @@ cluster-down:
 status:
 	kubectl cluster-info --context kind-$(CLUSTER_NAME)
 	kubectl get pods -A
+
+deploy:
+	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+	helm repo update
+	helm upgrade --install demo open-telemetry/opentelemetry-demo -n demo --create-namespace -f infra/demo-app-values.yaml
 
 monitoring:
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
