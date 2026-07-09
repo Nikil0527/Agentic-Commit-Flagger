@@ -1,6 +1,6 @@
 CLUSTER_NAME = commit-flagger
 
-.PHONY: cluster-up cluster-down status deploy monitoring grafana prometheus alertmanager
+.PHONY: cluster-up cluster-down status deploy monitoring alerts grafana prometheus alertmanager
 
 cluster-up:
 	kind create cluster --name $(CLUSTER_NAME) --config infra/kind-config.yaml
@@ -21,6 +21,9 @@ monitoring:
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	helm repo update
 	helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f infra/monitoring-values.yaml
+
+alerts:
+	kubectl apply -f infra/alert-rules.yaml
 
 # UIs aren't exposed outside the cluster, port-forward to reach them locally
 grafana:

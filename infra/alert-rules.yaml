@@ -1,0 +1,34 @@
+# alert rules the agent will respond to - picked up automatically by the prometheus operator
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: commit-flagger-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: cluster-health
+      rules:
+        - alert: PodCrashLooping
+          # more than 3 restarts in 15m means it's not a one-off blip
+          expr: increase(kube_pod_container_status_restarts_total{namespace!="kube-system"}[15m]) > 3
+          for: 2m
+          labels:
+            severity: critical
+            failure_class: crash-loop
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
+            description: "Container {{ $labels.container }} restarted more than 3 times in 15 minutes."
+
+        - alert: PodMemorySaturation
+          # working set near the limit means the oom killer is coming
+          expr: >
+            container_memory_working_set_bytes{container!=""}
+            / on(namespace, pod, container)
+            kube_pod_container_resource_limits{resource="memory"} > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            failure_class: memory-saturation
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} memory above 90% of limit"
+            description: "Container {{ $labels.container }} has been over 90% of its memory limit for 5 minutes."
