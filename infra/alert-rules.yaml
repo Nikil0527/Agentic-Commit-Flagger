@@ -6,6 +6,33 @@ metadata:
   namespace: monitoring
 spec:
   groups:
+    - name: app-health
+      rules:
+        - alert: HighErrorRate
+          # more than 5% of a service's requests failing with 5xx
+          expr: >
+            sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            / sum by (service_name) (rate(http_server_request_duration_seconds_count[5m])) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            failure_class: error-spike
+          annotations:
+            summary: "{{ $labels.service_name }} error rate above 5%"
+            description: "{{ $labels.service_name }} is failing {{ $value | humanizePercentage }} of requests over the last 5 minutes."
+
+        - alert: HighP99Latency
+          # slowest 1% of requests taking over a second
+          expr: >
+            histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket[5m]))) > 1
+          for: 5m
+          labels:
+            severity: warning
+            failure_class: latency
+          annotations:
+            summary: "{{ $labels.service_name }} p99 latency above 1s"
+            description: "{{ $labels.service_name }} p99 latency is {{ $value }}s over the last 5 minutes."
+
     - name: cluster-health
       rules:
         - alert: PodCrashLooping
