@@ -20,3 +20,7 @@ components:
     service:
       type: NodePort
       nodePort: 30080
+
+  # flagd-ui oom-loops on boot at any limit (broken image) and we don't need it
+  flagd:
+    sidecarContainers: []

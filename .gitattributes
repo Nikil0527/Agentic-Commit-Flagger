@@ -1,0 +1,2 @@
+# bash chokes on crlf, keep scripts unix-style everywhere
+*.sh text eol=lf
