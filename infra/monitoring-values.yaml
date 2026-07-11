@@ -18,6 +18,8 @@ prometheus:
     # pick up alert rules from anywhere in the cluster, not just ones the chart created
     ruleSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
+    # let the demo app's otel collector push metrics straight to prometheus
+    enableOTLPReceiver: true
     retention: 24h
     resources:
       requests:

@@ -1,5 +1,11 @@
 # otel demo trimmed down - it ships its own observability tools, we already run our own
 
+opentelemetry-collector:
+  config:
+    exporters:
+      otlphttp/prometheus:
+        endpoint: http://monitoring-kube-prometheus-prometheus.monitoring:9090/api/v1/otlp
+
 opensearch:
   enabled: false
 jaeger:
@@ -10,7 +16,6 @@ grafana:
   enabled: false
 
 components:
-  # reach the shop at localhost:30080 through the kind port mapping
   frontend-proxy:
     service:
       type: NodePort
