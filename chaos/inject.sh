@@ -31,6 +31,26 @@ flags_json() {
   kubectl get cm "$CM" -n "$NS" -o jsonpath='{.data.demo\.flagd\.json}'
 }
 
+# which service actually evaluates each flag - they hold a stream to flagd and can
+# serve stale values after a flagd restart, so the consumer gets bounced too
+consumer_of() {
+  case "$1" in
+    productCatalogFailure)      echo product-catalog ;;
+    paymentFailure)             echo payment ;;
+    emailMemoryLeak)            echo email ;;
+    adHighCpu)                  echo ad ;;
+    recommendationCacheFailure) echo recommendation ;;
+    kafkaQueueProblems)         echo checkout ;;
+    failedReadinessProbe)       echo cart ;;
+  esac
+}
+
+active_flags() {
+  flags_json | awk '
+    /^    "[a-zA-Z]+": \{/ { gsub(/[":{ ]/,""); name=$0 }
+    /"defaultVariant"/ && !/"off"/ { print name }'
+}
+
 # flags live in a configmap; flagd only rereads it after a restart
 set_flag() {
   flags_json > "$TMP"
@@ -40,7 +60,9 @@ set_flag() {
     { print }' "$TMP" > "$TMP.new"
   kubectl create configmap "$CM" -n "$NS" --from-file="$KEY"="$TMP.new" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   kubectl rollout restart deployment/flagd -n "$NS" >/dev/null
-  echo "flag $1 -> $2"
+  target=$(consumer_of "$1")
+  [ -n "$target" ] && kubectl rollout restart "deployment/$target" -n "$NS" >/dev/null
+  echo "flag $1 -> $2 (restarted flagd + $target)"
 }
 
 case "${1:-}" in
@@ -55,9 +77,14 @@ case "${1:-}" in
     kubectl set resources deployment/email -n "$NS" -c email --requests=memory=16Mi --limits=memory=16Mi
     echo "email squeezed to 16Mi, oom loop incoming" ;;
   reset)
+    was_active=$(active_flags)
     flags_json | sed 's/"defaultVariant": *"[^"]*"/"defaultVariant": "off"/g' > "$TMP.new"
     kubectl create configmap "$CM" -n "$NS" --from-file="$KEY"="$TMP.new" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
     kubectl rollout restart deployment/flagd -n "$NS" >/dev/null
+    for flag in $was_active; do
+      target=$(consumer_of "$flag")
+      [ -n "$target" ] && kubectl rollout restart "deployment/$target" -n "$NS" >/dev/null && echo "restarted $target"
+    done
     kubectl patch deployment/email -n "$NS" --type json -p '[{"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{"limits":{"memory":"100Mi"}}}]' >/dev/null
     echo "all faults off" ;;
   status)
