@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+
+# incident logs
+data/
 
 # secrets
 .env
