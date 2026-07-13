@@ -5,6 +5,8 @@ set -euo pipefail
 NS=demo
 CM=flagd-config
 KEY='demo.flagd.json'
+# tracked in git - a fault injection is a real config commit the agent can find
+FLAGS_FILE="$(cd "$(dirname "$0")/.." && pwd)/infra/demo-flags.json"
 TMP="$(mktemp)"
 trap 'rm -f "$TMP" "$TMP.new"' EXIT
 
@@ -51,18 +53,22 @@ active_flags() {
     /"defaultVariant"/ && !/"off"/ { print name }'
 }
 
-# flags live in a configmap; flagd only rereads it after a restart
+apply_flags() {
+  kubectl create configmap "$CM" -n "$NS" --from-file="$KEY"="$FLAGS_FILE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  kubectl rollout restart deployment/flagd -n "$NS" >/dev/null
+}
+
 set_flag() {
-  flags_json > "$TMP"
   awk -v flag="\"$1\"" -v val="\"$2\"" '
     index($0, flag) { inflag=1 }
     inflag && /"defaultVariant"/ { sub(/"defaultVariant": *"[^"]*"/, "\"defaultVariant\": " val); inflag=0 }
-    { print }' "$TMP" > "$TMP.new"
-  kubectl create configmap "$CM" -n "$NS" --from-file="$KEY"="$TMP.new" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  kubectl rollout restart deployment/flagd -n "$NS" >/dev/null
+    { print }' "$FLAGS_FILE" > "$TMP.new"
+  cp "$TMP.new" "$FLAGS_FILE"
+  apply_flags
   target=$(consumer_of "$1")
   [ -n "$target" ] && kubectl rollout restart "deployment/$target" -n "$NS" >/dev/null
   echo "flag $1 -> $2 (restarted flagd + $target)"
+  echo "$FLAGS_FILE changed - commit it, that commit is the incident's paper trail"
 }
 
 case "${1:-}" in
@@ -78,9 +84,9 @@ case "${1:-}" in
     echo "email squeezed to 16Mi, oom loop incoming" ;;
   reset)
     was_active=$(active_flags)
-    flags_json | sed 's/"defaultVariant": *"[^"]*"/"defaultVariant": "off"/g' > "$TMP.new"
-    kubectl create configmap "$CM" -n "$NS" --from-file="$KEY"="$TMP.new" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-    kubectl rollout restart deployment/flagd -n "$NS" >/dev/null
+    sed 's/"defaultVariant": *"[^"]*"/"defaultVariant": "off"/g' "$FLAGS_FILE" > "$TMP.new"
+    cp "$TMP.new" "$FLAGS_FILE"
+    apply_flags
     for flag in $was_active; do
       target=$(consumer_of "$flag")
       [ -n "$target" ] && kubectl rollout restart "deployment/$target" -n "$NS" >/dev/null && echo "restarted $target"
