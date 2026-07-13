@@ -1,7 +1,19 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
 from agent.main import create_app
+
+
+class FakeGitHub:
+    def __init__(self):
+        self.repo = "me/repo"
+        self.calls = 0
+
+    async def recent_commits(self, limit=20):
+        self.calls += 1
+        return [{"sha": "abc123", "message": "some commit", "author": "me", "date": "2026-07-13T00:00:00Z"}]
 
 
 def firing_payload(group_key="{}:{alertname='GrpcHighErrorRate'}", status="firing", starts_at="2026-07-11T12:00:00Z"):
@@ -33,7 +45,7 @@ def firing_payload(group_key="{}:{alertname='GrpcHighErrorRate'}", status="firin
 
 @pytest.fixture
 def client(tmp_path):
-    return TestClient(create_app(data_dir=tmp_path))
+    return TestClient(create_app(data_dir=tmp_path, github=FakeGitHub()))
 
 
 def test_health(client):
@@ -118,6 +130,23 @@ def test_store_survives_restart(client, tmp_path):
     incidents = restarted.get("/incidents").json()
     assert len(incidents) == 1
     assert incidents[0]["id"] == same
+
+
+def test_new_incident_fetches_commits(tmp_path):
+    gh = FakeGitHub()
+    client = TestClient(create_app(data_dir=tmp_path, github=gh))
+
+    client.post("/webhook/alertmanager", json=firing_payload())
+    assert gh.calls == 1
+
+    events = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
+    fetched = [e for e in events if e["event"] == "commits_fetched"]
+    assert len(fetched) == 1
+    assert fetched[0]["data"]["commits"][0]["sha"] == "abc123"
+
+    # refire must not refetch
+    client.post("/webhook/alertmanager", json=firing_payload())
+    assert gh.calls == 1
 
 
 def test_corrupt_log_line_is_skipped(client, tmp_path):
