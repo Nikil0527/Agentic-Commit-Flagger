@@ -30,7 +30,7 @@ class GitHubClient:
         ]
 
     async def commit_diff(self, sha: str, max_chars: int = 4000) -> str:
-        # per-commit call, so only fetch diffs for shortlisted suspects - keeps rate limits sane
+        # one api call per commit so only fetch diffs for shortlisted suspects to keep rate limits sane
         r = await self.http.get(f"/repos/{self.repo}/commits/{sha}")
         r.raise_for_status()
         chunks = []

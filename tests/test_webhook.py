@@ -15,6 +15,18 @@ class FakeGitHub:
         self.calls += 1
         return [{"sha": "abc123", "message": "some commit", "author": "me", "date": "2026-07-13T00:00:00Z"}]
 
+    async def commit_diff(self, sha, max_chars=4000):
+        return "+ a diff line"
+
+
+class FakeRanker:
+    async def rank(self, alert, commits, diffs):
+        return {
+            "suspects": [{"sha": commits[0]["sha"], "confidence": "high", "reasoning": "test"}],
+            "assessment": "test assessment",
+            "model": "fake",
+        }
+
 
 def firing_payload(group_key="{}:{alertname='GrpcHighErrorRate'}", status="firing", starts_at="2026-07-11T12:00:00Z"):
     return {
@@ -45,7 +57,7 @@ def firing_payload(group_key="{}:{alertname='GrpcHighErrorRate'}", status="firin
 
 @pytest.fixture
 def client(tmp_path):
-    return TestClient(create_app(data_dir=tmp_path, github=FakeGitHub()))
+    return TestClient(create_app(data_dir=tmp_path, github=FakeGitHub(), ranker=None))
 
 
 def test_health(client):
@@ -111,7 +123,7 @@ def test_stale_resolved_does_not_close_reopened_incident(client):
     client.post("/webhook/alertmanager", json=firing_payload(status="resolved", starts_at="2026-07-11T12:00:00Z"))
     reopened = client.post("/webhook/alertmanager", json=firing_payload(starts_at="2026-07-11T13:00:00Z")).json()["incident"]
 
-    # duplicate of the first resolve arrives late - must not close the new incident
+    # a duplicate of the first resolve arrives late and must not close the new incident
     r = client.post("/webhook/alertmanager", json=firing_payload(status="resolved", starts_at="2026-07-11T12:00:00Z"))
     assert r.json()["incident"] is None
 
@@ -134,7 +146,7 @@ def test_store_survives_restart(client, tmp_path):
 
 def test_new_incident_fetches_commits(tmp_path):
     gh = FakeGitHub()
-    client = TestClient(create_app(data_dir=tmp_path, github=gh))
+    client = TestClient(create_app(data_dir=tmp_path, github=gh, ranker=None))
 
     client.post("/webhook/alertmanager", json=firing_payload())
     assert gh.calls == 1
@@ -143,10 +155,21 @@ def test_new_incident_fetches_commits(tmp_path):
     fetched = [e for e in events if e["event"] == "commits_fetched"]
     assert len(fetched) == 1
     assert fetched[0]["data"]["commits"][0]["sha"] == "abc123"
+    assert any(e["event"] == "ranking_skipped" for e in events)
 
     # refire must not refetch
     client.post("/webhook/alertmanager", json=firing_payload())
     assert gh.calls == 1
+
+
+def test_new_incident_ranks_culprits(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path, github=FakeGitHub(), ranker=FakeRanker()))
+    client.post("/webhook/alertmanager", json=firing_payload())
+
+    events = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
+    ranked = [e for e in events if e["event"] == "culprits_ranked"]
+    assert len(ranked) == 1
+    assert ranked[0]["data"]["suspects"][0]["sha"] == "abc123"
 
 
 def test_corrupt_log_line_is_skipped(client, tmp_path):

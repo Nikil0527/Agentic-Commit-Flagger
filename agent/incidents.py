@@ -9,8 +9,8 @@ from agent.models import AlertmanagerWebhook
 
 log = logging.getLogger("agent")
 
-# anchored to the repo, not the cwd - a restart from a different directory
-# would otherwise silently start a second incident store
+# anchored to the repo instead of the cwd so a restart from a different directory
+# does not silently start a second incident store
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "incidents"
 
 
@@ -21,7 +21,7 @@ class IncidentStore:
     def __init__(self, data_dir: Path = DEFAULT_DATA_DIR):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        # groupKey -> {"id": ..., "alert_starts_at": ...}
+        # maps groupKey to the incident id and its first alert start time
         self.open_incidents: dict[str, dict] = {}
         self._reload()
 
@@ -37,8 +37,8 @@ class IncidentStore:
             incident_id = f"inc-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
             data = self._alert_summary(payload)
             data["alert_starts_at"] = starts_at
-            # write first, index second - a failed write must not leave a phantom entry
-            # that alertmanager's retry would then turn into a headerless incident file
+            # write first and index second so a failed write cannot leave a phantom entry
+            # that the alertmanager retry would turn into a headerless incident file
             self._append(incident_id, "alert_received", data, payload.groupKey)
             self.open_incidents[payload.groupKey] = {"id": incident_id, "alert_starts_at": starts_at}
             return incident_id
@@ -74,7 +74,7 @@ class IncidentStore:
         return out
 
     def _reload(self):
-        # rebuild the open-incident index from disk so a restart doesn't lose track
+        # rebuild the open incident index from disk so a restart does not lose track
         for f in sorted(self.data_dir.glob("*.jsonl")):
             events = self._read_events(f)
             if not events:
@@ -96,7 +96,7 @@ class IncidentStore:
             try:
                 events.append(json.loads(line))
             except json.JSONDecodeError:
-                # a torn line from a crash mid-write must not brick the whole store
+                # a torn line from a crash during a write must not brick the whole store
                 log.warning("skipping corrupt line in %s", path.name)
         return events
 
