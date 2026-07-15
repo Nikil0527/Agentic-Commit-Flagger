@@ -3,8 +3,10 @@ import os
 
 import httpx
 
+# free tier defaults, swap providers with LLM_BASE_URL and LLM_MODEL env vars
+# the latest alias survives model retirements
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-flash-latest"
 
 SYSTEM = """You are an SRE agent investigating a production incident on a kubernetes microservices cluster.
 You get the firing alert and the repo's recent commits, some with diffs. Rank up to 3 commits most likely

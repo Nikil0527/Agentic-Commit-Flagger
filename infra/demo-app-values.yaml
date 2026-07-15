@@ -1,4 +1,4 @@
-# otel demo trimmed down - it ships its own observability tools, we already run our own
+# otel demo trimmed down since it ships observability tools we already run ourselves
 
 opentelemetry-collector:
   config:
@@ -21,6 +21,6 @@ components:
       type: NodePort
       nodePort: 30080
 
-  # flagd-ui oom-loops on boot at any limit (broken image) and we don't need it
+  # the flagd ui sidecar oom loops on boot at any limit from a broken image and we do not need it
   flagd:
     sidecarContainers: []

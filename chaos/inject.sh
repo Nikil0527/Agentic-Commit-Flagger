@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# chaos cli - inject reproducible faults into the demo app
+# chaos cli for injecting reproducible faults into the demo app
 set -euo pipefail
 
 NS=demo
 CM=flagd-config
 KEY='demo.flagd.json'
-# tracked in git - a fault injection is a real config commit the agent can find
+# tracked in git so a fault injection is a real config commit the agent can find
 FLAGS_FILE="$(cd "$(dirname "$0")/.." && pwd)/infra/demo-flags.json"
 TMP="$(mktemp)"
 trap 'rm -f "$TMP" "$TMP.new"' EXIT
@@ -33,7 +33,7 @@ flags_json() {
   kubectl get cm "$CM" -n "$NS" -o jsonpath='{.data.demo\.flagd\.json}'
 }
 
-# which service actually evaluates each flag - they hold a stream to flagd and can
+# each flag is evaluated by one service which holds a stream to flagd and can
 # serve stale values after a flagd restart, so the consumer gets bounced too
 consumer_of() {
   case "$1" in

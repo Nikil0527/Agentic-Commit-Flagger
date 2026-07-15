@@ -1,6 +1,6 @@
 # kube-prometheus-stack trimmed down for a local kind cluster
 
-# kind hides these control-plane components from scraping, disable so we don't get dead targets
+# kind hides these control plane components from scraping so disable them to avoid dead targets
 kubeControllerManager:
   enabled: false
 kubeScheduler:
@@ -15,10 +15,10 @@ grafana:
 
 prometheus:
   prometheusSpec:
-    # pick up alert rules from anywhere in the cluster, not just ones the chart created
+    # pick up alert rules from anywhere in the cluster instead of only ones the chart created
     ruleSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
-    # let the demo app's otel collector push metrics straight to prometheus
+    # lets the demo app collector push metrics straight to prometheus
     enableOTLPReceiver: true
     retention: 24h
     resources:
@@ -27,7 +27,7 @@ prometheus:
         memory: 400Mi
 
 alertmanager:
-  # route everything to the agent webhook - it runs on the host during dev,
+  # route everything to the agent webhook which runs on the host during dev
   # host.docker.internal reaches out of the kind container
   config:
     route:

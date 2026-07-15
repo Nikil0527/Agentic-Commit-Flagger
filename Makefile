@@ -25,7 +25,7 @@ monitoring:
 alerts:
 	kubectl apply -f infra/alert-rules.yaml
 
-# UIs aren't exposed outside the cluster, port-forward to reach them locally
+# UIs are not exposed outside the cluster so port forward to reach them locally
 grafana:
 	kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
 

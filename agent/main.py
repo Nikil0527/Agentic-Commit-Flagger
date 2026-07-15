@@ -20,6 +20,7 @@ from agent.models import AlertmanagerWebhook
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("agent")
 
+# how many newest commits get their full diff sent to the llm
 DIFF_FETCH_LIMIT = 8
 
 

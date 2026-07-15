@@ -1,4 +1,4 @@
-# alert rules the agent will respond to - picked up automatically by the prometheus operator
+# alert rules the agent responds to and the prometheus operator picks up automatically
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -21,7 +21,7 @@ spec:
             description: "{{ $labels.job }} is failing {{ $value | humanizePercentage }} of requests over the last 5 minutes."
 
         - alert: GrpcHighErrorRate
-          # backend services talk grpc not http - status code 0 is OK, anything else is an error
+          # backend services talk grpc not http and status code 0 is the only success code
           expr: >
             sum by (job) (rate(rpc_server_duration_milliseconds_count{rpc_grpc_status_code!="0"}[5m]))
             / sum by (job) (rate(rpc_server_duration_milliseconds_count[5m])) > 0.05
@@ -34,7 +34,7 @@ spec:
             description: "{{ $labels.job }} is failing {{ $value | humanizePercentage }} of grpc requests over the last 5 minutes."
 
         - alert: HighP99Latency
-          # by job, not service_name - service_name is missing on some series and they collapse into one blank alert
+          # grouped by job because service_name is missing on some series and they collapse into one blank alert
           expr: >
             histogram_quantile(0.99, sum by (job, le) (rate(http_server_request_duration_seconds_bucket[5m]))) > 1
           for: 5m
@@ -48,7 +48,7 @@ spec:
     - name: cluster-health
       rules:
         - alert: PodCrashLooping
-          # more than 3 restarts in 15m means it's not a one-off blip
+          # more than 3 restarts in 15m means it is not a one off blip
           expr: increase(kube_pod_container_status_restarts_total{namespace!="kube-system"}[15m]) > 3
           for: 2m
           labels:
@@ -59,7 +59,8 @@ spec:
             description: "Container {{ $labels.container }} restarted more than 3 times in 15 minutes."
 
         - alert: PodMemorySaturation
-          # 95% because demo services idle at 85-92% of their limits; accounting's jvm sits at 98% forever so it's excluded
+          # demo services idle at 85 to 92 percent of their limits so 95 is the signal line
+          # accounting is excluded because its jvm sits at 98 percent forever
           expr: >
             container_memory_working_set_bytes{container!="", container!="accounting"}
             / on(namespace, pod, container)
