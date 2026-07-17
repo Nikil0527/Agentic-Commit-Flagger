@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ from fastapi import BackgroundTasks, FastAPI
 
 load_dotenv()
 
+from agent.brief import build_brief
 from agent.diagnosis import CulpritRanker
 from agent.github_client import GitHubClient
 from agent.incidents import IncidentStore
@@ -35,17 +37,27 @@ def create_app(
     if ranker == "auto":
         ranker = CulpritRanker() if os.environ.get("LLM_API_KEY") else None
     app.state.store = store
+    # concurrent incidents must not stampede the free tier llm
+    llm_slot = asyncio.Semaphore(1)
 
     async def investigate(incident_id: str, group_key: str, alert: dict):
-        try:
-            commits = await gh.recent_commits()
-            store.log_step(incident_id, "commits_fetched", {"repo": gh.repo, "commits": commits}, group_key)
-            log.info("[%s] fetched %d recent commits from %s", incident_id, len(commits), gh.repo)
-        except Exception as e:
-            # the incident log still has the alert even if github is down
-            store.log_step(incident_id, "commits_fetch_failed", {"error": str(e)}, group_key)
-            log.error("[%s] commit fetch failed: %s", incident_id, e)
+        commits = None
+        err = ""
+        # transient network blips should not kill the whole investigation
+        for attempt in range(3):
+            try:
+                commits = await gh.recent_commits()
+                break
+            except Exception as e:
+                err = f"{type(e).__name__} {e}".strip()
+                log.warning("[%s] commit fetch attempt %d failed: %s", incident_id, attempt + 1, err)
+                await asyncio.sleep(5)
+        if commits is None:
+            # the incident log still has the alert even if github stays down
+            store.log_step(incident_id, "commits_fetch_failed", {"error": err}, group_key)
             return
+        store.log_step(incident_id, "commits_fetched", {"repo": gh.repo, "commits": commits}, group_key)
+        log.info("[%s] fetched %d recent commits from %s", incident_id, len(commits), gh.repo)
 
         if ranker is None:
             store.log_step(incident_id, "ranking_skipped", {"reason": "no llm api key"}, group_key)
@@ -55,13 +67,33 @@ def create_app(
             diffs = {}
             for c in commits[:DIFF_FETCH_LIMIT]:
                 diffs[c["sha"]] = await gh.commit_diff(c["sha"], max_chars=3000)
-            result = await ranker.rank(alert, commits, diffs)
-            store.log_step(incident_id, "culprits_ranked", result, group_key)
-            top = result["suspects"][0]["sha"] if result.get("suspects") else "none"
-            log.info("[%s] culprit ranking done, top suspect: %s", incident_id, top)
         except Exception as e:
-            store.log_step(incident_id, "ranking_failed", {"error": str(e)}, group_key)
-            log.error("[%s] ranking failed: %s", incident_id, e)
+            store.log_step(incident_id, "ranking_failed", {"error": f"diff fetch {type(e).__name__} {e}"}, group_key)
+            return
+
+        result = None
+        err = ""
+        # free tier llms throw transient 503s, back off and retry before giving up
+        for attempt in range(3):
+            try:
+                async with llm_slot:
+                    result = await ranker.rank(alert, commits, diffs)
+                break
+            except Exception as e:
+                err = f"{type(e).__name__} {e}".strip()
+                log.warning("[%s] ranking attempt %d failed: %s", incident_id, attempt + 1, err)
+                await asyncio.sleep(10 * (attempt + 1))
+        if result is None:
+            store.log_step(incident_id, "ranking_failed", {"error": err}, group_key)
+            return
+
+        store.log_step(incident_id, "culprits_ranked", result, group_key)
+        top = result["suspects"][0]["sha"] if result.get("suspects") else "none"
+        log.info("[%s] culprit ranking done, top suspect: %s", incident_id, top)
+
+        brief = build_brief(alert, result, gh.repo)
+        store.log_step(incident_id, "brief_posted", {"text": brief}, group_key)
+        log.info("[%s] incident brief:\n%s", incident_id, brief)
 
     @app.post("/webhook/alertmanager")
     async def alertmanager_webhook(payload: AlertmanagerWebhook, background: BackgroundTasks):
