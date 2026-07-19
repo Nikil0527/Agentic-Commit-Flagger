@@ -57,6 +57,18 @@ class IncidentStore:
     def log_step(self, incident_id: str, event: str, data: dict, group_key: str = ""):
         self._append(incident_id, event, data, group_key)
 
+    def events(self, incident_id: str) -> list[dict]:
+        path = self.data_dir / f"{incident_id}.jsonl"
+        return self._read_events(path) if path.exists() else []
+
+    def resolve_manual(self, incident_id: str) -> bool:
+        for group_key, meta in list(self.open_incidents.items()):
+            if meta["id"] == incident_id:
+                self._append(incident_id, "resolved", {"by": "manual"}, group_key)
+                del self.open_incidents[group_key]
+                return True
+        return False
+
     def summary(self) -> list[dict]:
         out = []
         for f in sorted(self.data_dir.glob("*.jsonl")):

@@ -1,4 +1,4 @@
-def build_brief(alert: dict, ranking: dict, repo: str) -> str:
+def build_brief(alert: dict, ranking: dict, repo: str, runbook: dict | None = None, impact: dict | None = None) -> str:
     """Turns a finished diagnosis into the short text a responder actually reads."""
     name = alert.get("alertname", "unknown alert")
     labels = alert.get("labels", {})
@@ -10,6 +10,8 @@ def build_brief(alert: dict, ranking: dict, repo: str) -> str:
     target = labels.get("job") or labels.get("pod") or ""
     if target:
         lines.append(f"affected: {target}")
+    if impact:
+        lines.append(f"impact: {impact['description']}")
     lines.append("")
 
     suspects = ranking.get("suspects", [])
@@ -27,4 +29,10 @@ def build_brief(alert: dict, ranking: dict, repo: str) -> str:
     if assessment:
         lines.append("")
         lines.append(f"assessment: {assessment}")
+
+    if runbook:
+        lines.append("")
+        lines.append(f"runbook: {runbook['runbook']}")
+        for step in runbook.get("mitigation", "").splitlines():
+            lines.append(f"  {step}")
     return "\n".join(lines)

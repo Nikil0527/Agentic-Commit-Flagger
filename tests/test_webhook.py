@@ -28,6 +28,19 @@ class FakeRanker:
         }
 
 
+class FakeImpact:
+    async def estimate(self, alert):
+        return {"description": "~12% of requests failing", "job": alert.get("labels", {}).get("job", "")}
+
+
+def make_pm(tmp_path):
+    from agent.postmortem import PostmortemWriter
+
+    pm = PostmortemWriter(model="test", out_dir=tmp_path / "postmortems")
+    pm.enabled = False
+    return pm
+
+
 def firing_payload(group_key="{}:{alertname='GrpcHighErrorRate'}", status="firing", starts_at="2026-07-11T12:00:00Z"):
     return {
         "version": "4",
@@ -57,7 +70,10 @@ def firing_payload(group_key="{}:{alertname='GrpcHighErrorRate'}", status="firin
 
 @pytest.fixture
 def client(tmp_path):
-    return TestClient(create_app(data_dir=tmp_path, github=FakeGitHub(), ranker=None))
+    return TestClient(create_app(
+        data_dir=tmp_path, github=FakeGitHub(), ranker=None,
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
 
 
 def test_health(client):
@@ -163,13 +179,65 @@ def test_new_incident_fetches_commits(tmp_path):
 
 
 def test_new_incident_ranks_culprits(tmp_path):
-    client = TestClient(create_app(data_dir=tmp_path, github=FakeGitHub(), ranker=FakeRanker()))
+    client = TestClient(create_app(
+        data_dir=tmp_path, github=FakeGitHub(), ranker=FakeRanker(),
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
     client.post("/webhook/alertmanager", json=firing_payload())
 
     events = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
     ranked = [e for e in events if e["event"] == "culprits_ranked"]
     assert len(ranked) == 1
     assert ranked[0]["data"]["suspects"][0]["sha"] == "abc123"
+
+    brief = next(e for e in events if e["event"] == "brief_posted")
+    assert "impact: ~12% of requests failing" in brief["data"]["text"]
+    assert any(e["event"] == "impact_estimated" for e in events)
+
+
+def test_resolve_writes_postmortem(tmp_path):
+    client = TestClient(create_app(
+        data_dir=tmp_path, github=FakeGitHub(), ranker=FakeRanker(),
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
+    incident_id = client.post("/webhook/alertmanager", json=firing_payload()).json()["incident"]
+
+    r = client.post(f"/incidents/{incident_id}/resolve")
+    assert r.status_code == 200
+    assert r.json()["closed_now"] is True
+
+    pm_file = tmp_path / "postmortems" / f"{incident_id}.md"
+    assert pm_file.exists()
+    text = pm_file.read_text(encoding="utf-8")
+    assert "## timeline" in text and "abc123" in text
+
+    incidents = client.get("/incidents").json()
+    assert incidents[0]["status"] == "resolved"
+
+
+def test_resolve_unknown_incident_404(client):
+    assert client.post("/incidents/inc-nope/resolve").status_code == 404
+
+
+def test_resolve_rejects_path_traversal(client):
+    assert client.post("/incidents/..%2F..%2Fsecrets/resolve").status_code == 404
+
+
+def test_resolve_twice_does_not_rerun(tmp_path):
+    client = TestClient(create_app(
+        data_dir=tmp_path, github=FakeGitHub(), ranker=FakeRanker(),
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
+    incident_id = client.post("/webhook/alertmanager", json=firing_payload()).json()["incident"]
+
+    first = client.post(f"/incidents/{incident_id}/resolve").json()
+    second = client.post(f"/incidents/{incident_id}/resolve").json()
+    assert first["closed_now"] is True
+    assert second["closed_now"] is False
+
+    events = [json.loads(l) for l in (tmp_path / f"{incident_id}.jsonl").read_text().splitlines()]
+    written = [e for e in events if e["event"] == "postmortem_written"]
+    assert len(written) == 1
 
 
 def test_corrupt_log_line_is_skipped(client, tmp_path):
