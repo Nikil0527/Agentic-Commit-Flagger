@@ -104,14 +104,3 @@ The agent is scored like a benchmark, not by vibes. With the cluster and agent r
 ```
 
 Each trial measures whether the agent flagged a commit touching the changed config, whether it retrieved the right runbook, and time from injection to brief. Results append to `eval/results.jsonl` so interrupted runs resume where they left off.
-
-## Design notes
-
-- **No auto-remediation.** The agent diagnoses and recommends; a human resolves. This is deliberate.
-- **Real culprit commits, no fake history.** Fault injection edits a flag file tracked in git, so the commit that broke the cluster is a genuine commit in this repo's history.
-- **Provider-agnostic LLM.** The agent talks to any OpenAI-compatible endpoint; the default is the Gemini free tier. Retries, backoff, and serialized calls keep it reliable on free-tier limits.
-- **Degrades gracefully.** No LLM key, GitHub down, Prometheus unreachable — each step logs its failure and the rest of the pipeline continues.
-
-## Status
-
-Core pipeline complete and verified end to end, with CI and an evaluation harness. Planned improvements: full evaluation runs with the results table published here, a Slack delivery channel for briefs, vector embeddings for runbook retrieval, and a demo recording.
