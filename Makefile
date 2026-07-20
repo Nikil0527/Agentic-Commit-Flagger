@@ -1,6 +1,6 @@
 CLUSTER_NAME = commit-flagger
 
-.PHONY: cluster-up cluster-down status deploy monitoring alerts grafana prometheus alertmanager
+.PHONY: cluster-up cluster-down status deploy monitoring alerts agent test grafana prometheus alertmanager
 
 cluster-up:
 	kind create cluster --name $(CLUSTER_NAME) --config infra/kind-config.yaml
@@ -24,6 +24,12 @@ monitoring:
 
 alerts:
 	kubectl apply -f infra/alert-rules.yaml
+
+agent:
+	python -m uvicorn agent.main:app --host 0.0.0.0 --port 8000
+
+test:
+	python -m pytest
 
 # UIs are not exposed outside the cluster so port forward to reach them locally
 grafana:
