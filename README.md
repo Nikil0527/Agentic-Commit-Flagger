@@ -1,5 +1,7 @@
 # Agentic-Commit-Flagger
 
+![ci](https://github.com/Nikil0527/Agentic-Commit-Flagger/actions/workflows/ci.yml/badge.svg)
+
 An autonomous incident-response agent that can track commit issues when outages occur.
 
 When a monitoring alert fires, the agent investigates on its own: it reviews recent commits and their diffs, flags the most likely culprit with reasoning, pulls up the relevant runbook, estimates how much traffic is affected, and produces a concise incident brief. Once the incident is resolved, it drafts a postmortem report from its own record of what happened.
@@ -90,6 +92,19 @@ cat postmortems/<incident-id>.md                  # the drafted postmortem
 .venv/Scripts/python -m pytest
 ```
 
+Tests also run in GitHub Actions on every push.
+
+## Evaluation
+
+The agent is scored like a benchmark, not by vibes. With the cluster and agent running:
+
+```sh
+.venv/Scripts/python eval/evaluate.py --trials 3     # injects every scenario 3x, scores each diagnosis
+.venv/Scripts/python eval/evaluate.py --report       # prints the results table
+```
+
+Each trial measures whether the agent flagged a commit touching the changed config, whether it retrieved the right runbook, and time from injection to brief. Results append to `eval/results.jsonl` so interrupted runs resume where they left off.
+
 ## Design notes
 
 - **No auto-remediation.** The agent diagnoses and recommends; a human resolves. This is deliberate.
@@ -99,4 +114,4 @@ cat postmortems/<incident-id>.md                  # the drafted postmortem
 
 ## Status
 
-Core pipeline complete and verified end to end. Remaining: evaluation harness with accuracy metrics, CI, demo recording.
+Core pipeline complete and verified end to end, with CI and an evaluation harness. Planned improvements: full evaluation runs with the results table published here, a Slack delivery channel for briefs, vector embeddings for runbook retrieval, and a demo recording.
