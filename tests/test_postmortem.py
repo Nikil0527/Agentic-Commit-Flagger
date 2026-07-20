@@ -13,11 +13,6 @@ EVENTS = [
 ]
 
 
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
 def llm_client(text):
     def handler(request):
         return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})

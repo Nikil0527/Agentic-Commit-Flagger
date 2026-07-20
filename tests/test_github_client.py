@@ -71,8 +71,3 @@ async def test_api_error_raises():
     gh = GitHubClient(repo="me/repo", client=mock_client(handler))
     with pytest.raises(httpx.HTTPStatusError):
         await gh.recent_commits()
-
-
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"

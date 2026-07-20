@@ -16,11 +16,6 @@ def prom_client(values):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://prom.test")
 
 
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
 ERROR_ALERT = {
     "alertname": "GrpcHighErrorRate",
     "labels": {"job": "otel-demo/product-catalog", "failure_class": "error-spike"},

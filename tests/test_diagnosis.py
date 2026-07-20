@@ -28,11 +28,6 @@ def fake_llm(response_text, capture=None):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://fake-llm.test")
 
 
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
 @pytest.mark.anyio
 async def test_rank_parses_suspects():
     ranker = CulpritRanker(client=fake_llm(GOOD_RESPONSE), model="test-model")
