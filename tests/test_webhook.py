@@ -219,6 +219,26 @@ def test_resolve_unknown_incident_404(client):
     assert client.post("/incidents/inc-nope/resolve").status_code == 404
 
 
+def test_incident_detail_returns_timeline(client):
+    incident_id = client.post("/webhook/alertmanager", json=firing_payload()).json()["incident"]
+    r = client.get(f"/incidents/{incident_id}")
+    assert r.status_code == 200
+
+    body = r.json()
+    assert body["incident"] == incident_id
+    names = [e["event"] for e in body["events"]]
+    assert "alert_received" in names
+
+
+def test_incident_detail_unknown_404(client):
+    assert client.get("/incidents/inc-20260101-000000-abcdef").status_code == 404
+
+
+def test_incident_detail_rejects_bad_id(client):
+    # path traversal shaped id must not reach the filesystem
+    assert client.get("/incidents/..%2f..%2fetc").status_code == 404
+
+
 def test_resolve_rejects_path_traversal(client):
     assert client.post("/incidents/..%2F..%2Fsecrets/resolve").status_code == 404
 

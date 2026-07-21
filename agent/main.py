@@ -140,18 +140,26 @@ def create_app(
             background.add_task(investigate, incident_id, payload.groupKey, alert)
         return {"incident": incident_id, "status": payload.status}
 
-    @app.get("/incidents")
-    def incidents():
-        return store.summary()
-
-    @app.post("/incidents/{incident_id}/resolve")
-    async def resolve(incident_id: str):
+    def load_incident(incident_id: str) -> list[dict]:
         # the id becomes a filename so only the shape our store generates is allowed
         if not re.fullmatch(r"inc-[0-9]{8}-[0-9]{6}-[0-9a-f]{6}", incident_id):
             raise HTTPException(status_code=404, detail="unknown incident")
         events = store.events(incident_id)
         if not events:
             raise HTTPException(status_code=404, detail="unknown incident")
+        return events
+
+    @app.get("/incidents")
+    def incidents():
+        return store.summary()
+
+    @app.get("/incidents/{incident_id}")
+    def incident_detail(incident_id: str):
+        return {"incident": incident_id, "events": load_incident(incident_id)}
+
+    @app.post("/incidents/{incident_id}/resolve")
+    async def resolve(incident_id: str):
+        load_incident(incident_id)
         closed_now = store.resolve_manual(incident_id)
         existing = pm.out_dir / f"{incident_id}.md"
         if not closed_now and existing.exists():
