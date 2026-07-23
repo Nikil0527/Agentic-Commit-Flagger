@@ -5,8 +5,11 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# incident logs
+# incident logs and generated postmortems, keep a couple as samples
 data/
+postmortems/*
+!postmortems/example.md
+!postmortems/example-2.md
 
 # secrets
 .env
