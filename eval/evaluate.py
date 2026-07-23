@@ -6,6 +6,8 @@ Usage: python eval/evaluate.py --trials 3          run missing trials, resumable
 
 import argparse
 import json
+import os
+import shutil
 import subprocess
 import time
 from datetime import datetime
@@ -16,6 +18,21 @@ import httpx
 
 AGENT = "http://localhost:8000"
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def find_bash() -> str:
+    # windows bash on PATH is often the WSL launcher, prefer git bash which runs our scripts
+    for c in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
+        if os.path.exists(c):
+            return c
+    return shutil.which("bash") or "bash"
+
+
+BASH = find_bash()
+
+
+def inject(*args):
+    subprocess.run([BASH, "chaos/inject.sh", *args], cwd=ROOT, check=True, capture_output=True)
 RESULTS = Path(__file__).resolve().parent / "results.jsonl"
 INCIDENT_DIR = ROOT / "data" / "incidents"
 
@@ -78,7 +95,7 @@ def run_trial(scenario: str, spec: dict) -> dict:
     known = existing_incident_ids()
     culprits = commits_touching(spec["culprit_file"]) if spec["culprit_file"] else set()
 
-    subprocess.run(["bash", "chaos/inject.sh", scenario], cwd=ROOT, check=True, capture_output=True)
+    inject(scenario)
     t0 = time.time()
     print(f"  injected {scenario}, waiting for diagnosis...")
 
@@ -103,7 +120,7 @@ def run_trial(scenario: str, spec: dict) -> dict:
     if result is None:
         result = {"scenario": scenario, "incident": None, "alert_ok": False, "culprit_ok": False, "runbook_ok": False, "detect_seconds": None, "brief_seconds": None, "ts": datetime.now().isoformat(timespec="seconds")}
 
-    subprocess.run(["bash", "chaos/inject.sh", "reset"], cwd=ROOT, check=True, capture_output=True)
+    inject("reset")
     print(f"  reset, cooling down {COOLDOWN // 60} min so alerts clear")
     time.sleep(COOLDOWN)
     return result
