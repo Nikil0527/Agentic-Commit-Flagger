@@ -74,7 +74,10 @@ set_flag() {
 case "${1:-}" in
   error-spike)     set_flag productCatalogFailure on ;;
   payment-failure) set_flag paymentFailure "90%" ;;
-  memory-leak)     set_flag emailMemoryLeak "10x" ;;
+  memory-leak)
+    # tighter limit so the leak saturates and oom loops fast enough to alert within the window
+    kubectl set resources deployment/email -n "$NS" -c email --limits=memory=50Mi >/dev/null
+    set_flag emailMemoryLeak "1000x" ;;
   high-cpu)        set_flag adHighCpu on ;;
   cache-failure)   set_flag recommendationCacheFailure on ;;
   kafka-lag)       set_flag kafkaQueueProblems on ;;

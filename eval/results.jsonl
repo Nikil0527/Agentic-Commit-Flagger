@@ -9,3 +9,4 @@
 {"scenario": "high-cpu", "incident": null, "alert_ok": false, "culprit_ok": false, "runbook_ok": false, "detect_seconds": null, "brief_seconds": null, "ts": "2026-07-22T23:39:45"}
 {"scenario": "memory-leak", "incident": null, "alert_ok": false, "culprit_ok": false, "runbook_ok": false, "detect_seconds": null, "brief_seconds": null, "ts": "2026-07-23T00:07:49"}
 {"scenario": "memory-leak", "incident": null, "alert_ok": false, "culprit_ok": false, "runbook_ok": false, "detect_seconds": null, "brief_seconds": null, "ts": "2026-07-23T00:35:51"}
+{"scenario": "memory-leak", "incident": null, "alert_ok": false, "culprit_ok": false, "runbook_ok": false, "detect_seconds": null, "brief_seconds": null, "ts": "2026-07-23T01:03:54"}
