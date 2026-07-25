@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def find_bash() -> str:
-    # windows bash on PATH is often the WSL launcher, prefer git bash which runs our scripts
+    # windows bash on PATH is often the WSL launcher so prefer git bash which runs our scripts
     for c in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
         if os.path.exists(c):
             return c
@@ -39,7 +39,7 @@ INCIDENT_DIR = ROOT / "data" / "incidents"
 SCENARIOS = {
     "error-spike": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md"}, "culprit_file": "infra/demo-flags.json"},
     "payment-failure": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md"}, "culprit_file": "infra/demo-flags.json"},
-    "high-cpu": {"alerts": {"HighP99Latency"}, "runbooks": {"high-latency.md"}, "culprit_file": "infra/demo-flags.json"},
+    "slow-images": {"alerts": {"HighP99Latency"}, "runbooks": {"high-latency.md"}, "culprit_file": "infra/demo-flags.json"},
     "memory-leak": {"alerts": {"PodMemorySaturation", "PodCrashLooping"}, "runbooks": {"memory-saturation.md", "pod-crash-loop.md"}, "culprit_file": "infra/demo-flags.json"},
     "crash-loop": {"alerts": {"PodCrashLooping", "PodMemorySaturation"}, "runbooks": {"pod-crash-loop.md", "memory-saturation.md"}, "culprit_file": None},
 }

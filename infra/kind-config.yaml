@@ -1,4 +1,4 @@
-# single-node cluster is enough, the demo app is heavy and extra nodes just eat RAM
+# single-node cluster is enough because the demo app is heavy and extra nodes just eat RAM
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:

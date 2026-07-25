@@ -83,7 +83,7 @@ def create_app(
 
         result = None
         err = ""
-        # free tier llms throw transient 503s, back off and retry before giving up
+        # free tier llms throw transient 503s so back off and retry before giving up
         for attempt in range(3):
             try:
                 async with llm_slot:
@@ -163,7 +163,7 @@ def create_app(
         closed_now = store.resolve_manual(incident_id)
         existing = pm.out_dir / f"{incident_id}.md"
         if not closed_now and existing.exists():
-            # already resolved and written, do not burn another llm call
+            # already resolved and written so do not burn another llm call
             return {"incident": incident_id, "closed_now": False, "postmortem": str(existing)}
         async with llm_slot:
             path = await pm.write(incident_id, store.events(incident_id))

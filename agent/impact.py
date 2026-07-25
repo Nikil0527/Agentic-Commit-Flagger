@@ -17,6 +17,7 @@ class ImpactEstimator:
     async def estimate(self, alert: dict) -> dict | None:
         labels = alert.get("labels", {})
         job = labels.get("job", "")
+        service = labels.get("service_name", "")
         failure_class = labels.get("failure_class", "")
         try:
             if failure_class == "error-spike" and job:
@@ -30,22 +31,23 @@ class ImpactEstimator:
                 total = await self._query(f'sum(rate(rpc_server_duration_milliseconds_count{{job="{job}"}}[5m]))')
                 if total:
                     desc += f" at {total:.1f} req/s"
-            elif failure_class == "latency" and job:
+            elif failure_class == "latency" and service:
                 p99 = await self._query(
-                    f'histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{{job="{job}"}}[5m])))'
+                    'histogram_quantile(0.99, sum by (le) (rate('
+                    f'traces_span_metrics_duration_milliseconds_bucket{{span_kind="SPAN_KIND_SERVER",service_name="{service}"}}[5m])))'
                 )
                 if p99 is None:
                     return None
-                desc = f"p99 latency for {job} at {p99:.1f}s"
+                desc = f"p99 latency for {service} at {p99 / 1000:.1f}s"
             else:
                 return None
 
             minutes = self._minutes_since(alert.get("starts_at", ""))
             if minutes:
                 desc += f" for {minutes} min"
-            return {"description": desc, "job": job}
+            return {"description": desc, "job": job or service}
         except Exception:
-            # impact is garnish, never let it break the investigation
+            # impact is garnish so never let it break the investigation
             return None
 
     async def _query(self, promql: str) -> float | None:

@@ -35,10 +35,11 @@ async def test_error_spike_impact():
 
 @pytest.mark.anyio
 async def test_latency_impact():
-    alert = {"alertname": "HighP99Latency", "labels": {"job": "otel-demo/flagd", "failure_class": "latency"}, "annotations": {}}
-    est = ImpactEstimator(client=prom_client([4.9]))
+    alert = {"alertname": "HighP99Latency", "labels": {"service_name": "frontend", "failure_class": "latency"}, "annotations": {}}
+    est = ImpactEstimator(client=prom_client([4900]))
     out = await est.estimate(alert)
     assert "p99 latency" in out["description"]
+    assert "frontend" in out["description"]
     assert "4.9s" in out["description"]
 
 

@@ -44,8 +44,8 @@ rate(container_cpu_cfs_throttled_periods_total{namespace="demo"}[5m])
 nonzero and climbing means the container keeps hitting its cpu limit. cross-check with `kubectl top pods -n demo`.
 
 known causes in this cluster:
-- ad service burning cpu (this is exactly what the high-cpu chaos fault does). ad slows down, frontend waits on it, page p99 climbs.
-- slow image loads from image-provider dragging down frontend page times.
+- slow image loads dragging down frontend page times (this is exactly what the slow-images chaos fault does). the frontend waits on the images, page p99 climbs.
+- a downstream service burning cpu, so it slows down and its callers wait on it.
 
 check whether a chaos flag is on before digging deeper:
 
@@ -66,7 +66,7 @@ a human does all of this. never auto-remediate.
 
 ## notes
 
-- drill this: `./chaos/inject.sh high-cpu` makes ad burn cpu, HighP99Latency fires in a few minutes. practice walking the topk query down to ad.
+- drill this: `./chaos/inject.sh slow-images` slows frontend image loads, HighP99Latency fires in a few minutes. practice walking the topk query down to the frontend.
 - load-generator drives constant traffic, so a quiet graph means broken scraping, not a quiet shop.
 - histogram_quantile clamps at the top bucket boundary — a flat p99 line at a suspiciously round number means the real latency is above the biggest bucket.
 - related: error-rate-spike.md, pod-crash-loop.md, memory-saturation.md.

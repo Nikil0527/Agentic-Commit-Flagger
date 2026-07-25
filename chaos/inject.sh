@@ -18,7 +18,7 @@ faults:
   error-spike       product-catalog fails GetProduct, cascades into checkout
   payment-failure   payment rejects 90% of charge requests
   memory-leak       email service leaks memory on every request
-  high-cpu          ad service burns cpu, latency climbs
+  slow-images       frontend image loads become very slow, p99 latency climbs
   cache-failure     recommendation service cache breaks
   kafka-lag         kafka queue overload plus consumer delay
   probe-failure     cart readiness probe starts failing
@@ -34,13 +34,13 @@ flags_json() {
 }
 
 # each flag is evaluated by one service which holds a stream to flagd and can
-# serve stale values after a flagd restart, so the consumer gets bounced too
+# serve stale values after a flagd restart so the consumer gets bounced too
 consumer_of() {
   case "$1" in
     productCatalogFailure)      echo product-catalog ;;
     paymentFailure)             echo payment ;;
     emailMemoryLeak)            echo email ;;
-    adHighCpu)                  echo ad ;;
+    imageSlowLoad)              echo frontend ;;
     recommendationCacheFailure) echo recommendation ;;
     kafkaQueueProblems)         echo checkout ;;
     failedReadinessProbe)       echo cart ;;
@@ -78,7 +78,7 @@ case "${1:-}" in
     # tighter limit so the leak saturates and oom loops fast enough to alert within the window
     kubectl set resources deployment/email -n "$NS" -c email --limits=memory=50Mi >/dev/null
     set_flag emailMemoryLeak "1000x" ;;
-  high-cpu)        set_flag adHighCpu on ;;
+  slow-images)     set_flag imageSlowLoad "10sec" ;;
   cache-failure)   set_flag recommendationCacheFailure on ;;
   kafka-lag)       set_flag kafkaQueueProblems on ;;
   probe-failure)   set_flag failedReadinessProbe on ;;

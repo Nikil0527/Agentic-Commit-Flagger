@@ -3,7 +3,7 @@ import os
 
 import httpx
 
-# free tier defaults, swap providers with LLM_BASE_URL and LLM_MODEL env vars
+# free tier defaults and you can swap providers with LLM_BASE_URL and LLM_MODEL env vars
 # lite handles big prompts fastest on the free tier and the latest alias survives retirements
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 DEFAULT_MODEL = "gemini-flash-lite-latest"

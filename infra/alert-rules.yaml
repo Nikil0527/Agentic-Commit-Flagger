@@ -34,16 +34,17 @@ spec:
             description: "{{ $labels.job }} is failing {{ $value | humanizePercentage }} of grpc requests over the last 5 minutes."
 
         - alert: HighP99Latency
-          # grouped by job because service_name is missing on some series and they collapse into one blank alert
+          # most services report latency as span metrics from traces not http_server so measure those
+          # server spans only with flagd excluded and 1500ms clears the healthy p99 of the busy services
           expr: >
-            histogram_quantile(0.99, sum by (job, le) (rate(http_server_request_duration_seconds_bucket[5m]))) > 1
+            histogram_quantile(0.99, sum by (service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind="SPAN_KIND_SERVER", service_name!~".*flagd.*"}[5m]))) > 1500
           for: 5m
           labels:
             severity: warning
             failure_class: latency
           annotations:
-            summary: "{{ $labels.job }} p99 latency above 1s"
-            description: "{{ $labels.job }} p99 latency is {{ $value }}s over the last 5 minutes."
+            summary: "{{ $labels.service_name }} p99 latency above 1.5s"
+            description: "{{ $labels.service_name }} p99 latency is {{ $value }}ms over the last 5 minutes."
 
     - name: cluster-health
       rules:
