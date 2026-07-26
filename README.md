@@ -32,7 +32,7 @@ Every investigation step is added to a per-incident JSONL log, of which the post
 * Alertmanager - routes firing alerts to the agent via webhook
 * Grafana - dashboards over the cluster metrics
 
-**Agent service**
+**Agent Service**
 
 * Python 3.12 & FastAPI - receives webhooks and runs the diagnosis pipeline
 * httpx - async calls to GitHub, the LLM, and Prometheus
@@ -48,12 +48,12 @@ Every investigation step is added to a per-incident JSONL log, of which the post
 * GitHub REST API - pulls recent commits and diffs to find the culprit
 * Prometheus HTTP API - queries live metrics for user-impact estimates
 
-**Chaos + evaluation**
+**Chaos + Evaluation**
 
 * Custom chaos CLI (`chaos/inject.sh`) - injects 8 fault types through git-tracked feature flags
 * Evaluation harness - scores culprit accuracy, runbook retrieval, and time-to-brief across repeated trials
 
-## Getting started
+## Getting Started
 
 Prerequisites: Docker Desktop, kind, kubectl, helm, Python 3.12
 
