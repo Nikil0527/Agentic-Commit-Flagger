@@ -1,6 +1,6 @@
 CLUSTER_NAME = commit-flagger
 
-.PHONY: cluster-up cluster-down status deploy monitoring alerts agent test grafana prometheus alertmanager
+.PHONY: cluster-up cluster-down status deploy monitoring alerts agent test eval eval-report grafana prometheus alertmanager
 
 cluster-up:
 	kind create cluster --name $(CLUSTER_NAME) --config infra/kind-config.yaml
@@ -30,6 +30,13 @@ agent:
 
 test:
 	python -m pytest
+
+# needs the agent running and prometheus port-forwarded
+eval:
+	python eval/evaluate.py --trials 3
+
+eval-report:
+	python eval/evaluate.py --report
 
 # UIs are not exposed outside the cluster so port forward to reach them locally
 grafana:
