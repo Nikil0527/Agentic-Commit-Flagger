@@ -33,7 +33,7 @@ Every investigation step is appended to a per-incident JSONL log, which is what 
 | LLM | Gemini API free tier, swappable to any OpenAI-compatible provider via env vars |
 | Integrations | GitHub REST API |
 | Fault injection | Custom chaos CLI (`chaos/inject.sh`) driven by feature flags tracked in git |
-| Tests | pytest, 38 tests |
+| Tests | pytest, 47 tests |
 
 Everything runs locally and free — no cloud account and no paid services.
 
@@ -89,7 +89,7 @@ cat postmortems/<incident-id>.md                  # the drafted postmortem
 ## Running the tests
 
 ```sh
-.venv/Scripts/python -m pytest
+make test
 ```
 
 Tests also run in GitHub Actions on every push.
@@ -99,8 +99,8 @@ Tests also run in GitHub Actions on every push.
 The agent is scored like a benchmark, not by vibes. With the cluster and agent running:
 
 ```sh
-.venv/Scripts/python eval/evaluate.py --trials 3     # injects every scenario 3x, scores each diagnosis
-.venv/Scripts/python eval/evaluate.py --report       # prints the results table
+make eval          # injects every scenario 3x, scores each diagnosis
+make eval-report   # prints the results table
 ```
 
 Each trial measures whether the agent flagged a commit touching the changed config, whether it retrieved the right runbook, and time from injection to brief. Results append to `eval/results.jsonl` so interrupted runs resume where they left off.
