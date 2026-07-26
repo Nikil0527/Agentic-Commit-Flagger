@@ -2,13 +2,9 @@
 
 ![ci](https://github.com/Nikil0527/Agentic-Commit-Flagger/actions/workflows/ci.yml/badge.svg)
 
-An autonomous incident-response agent that can track commit issues when outages occur.
+An autonomous incident-response agent that can track commit issues when outages occur
 
-When a monitoring alert fires, the agent investigates on its own: it reviews recent commits and their diffs, flags the most likely culprit with reasoning, pulls up the relevant runbook, estimates how much traffic is affected, and produces a concise incident brief. Once the incident is resolved, it drafts a postmortem report from its own record of what happened.
-
-It diagnoses and recommends fixes but never implements them automatically.
-
-Built and tested against a Kubernetes microservices environment where failures are deliberately injected to validate the agent's accuracy.
+Built and tested against a Kubernetes microservices environment where failures are deliberately injected to validate the agent's accuracy
 
 ## How it works
 
@@ -20,26 +16,46 @@ Built and tested against a Kubernetes microservices environment where failures a
 6. **Brief**: everything lands in one incident brief, logged with the incident
 7. **Postmortem**: when a human resolves the incident, the agent drafts a postmortem from its own event log
 
-Every investigation step is appended to a per-incident JSONL log, which is what the postmortem is generated from.
+Every investigation step is added to a per-incident JSONL log, of which the postmortem is based on
 
-## Tech stack
+## Tech Stack
 
-| Layer | Tool |
-|---|---|
-| Demo app | OpenTelemetry Demo (~15 microservices) |
-| Cluster | kind (Kubernetes in Docker) |
-| Monitoring | Prometheus, Alertmanager, Grafana (kube-prometheus-stack) |
-| Agent service | Python 3.12, FastAPI |
-| LLM | Gemini API free tier, swappable to any OpenAI-compatible provider via env vars |
-| Integrations | GitHub REST API |
-| Fault injection | Custom chaos CLI (`chaos/inject.sh`) driven by feature flags tracked in git |
-| Tests | pytest, 47 tests |
+**Infrastructure**
 
-Everything runs locally and free with no cloud account and no paid services.
+* kind (Kubernetes in Docker) - local single-node cluster the whole system runs on
+* Helm - installs the monitoring stack and the demo app
+* OpenTelemetry Demo - ~15-microservice webshop used as the fake production system
+
+**Monitoring**
+
+* Prometheus - scrapes metrics and evaluates the alert rules
+* Alertmanager - routes firing alerts to the agent via webhook
+* Grafana - dashboards over the cluster metrics
+
+**Agent service**
+
+* Python 3.12 & FastAPI - receives webhooks and runs the diagnosis pipeline
+* httpx - async calls to GitHub, the LLM, and Prometheus
+* pytest - test suite run in GitHub Actions CI
+
+**LLM**
+
+* Gemini API (free tier) - ranks culprit commits and drafts postmortems
+* OpenAI-compatible interface - swappable to any provider via env vars
+
+**Integrations**
+
+* GitHub REST API - pulls recent commits and diffs to find the culprit
+* Prometheus HTTP API - queries live metrics for user-impact estimates
+
+**Chaos + evaluation**
+
+* Custom chaos CLI (`chaos/inject.sh`) - injects 8 fault types through git-tracked feature flags
+* Evaluation harness - scores culprit accuracy, runbook retrieval, and time-to-brief across repeated trials
 
 ## Getting started
 
-Prerequisites: Docker Desktop, kind, kubectl, helm, Python 3.12.
+Prerequisites: Docker Desktop, kind, kubectl, helm, Python 3.12
 
 ```sh
 # cluster with monitoring and the demo app
@@ -58,11 +74,9 @@ echo LLM_API_KEY=your-free-key-from-aistudio.google.com > .env
 make prometheus
 ```
 
-Without an LLM key the agent still runs end to end and logs `ranking_skipped`. Diagnosis needs the free key.
+Without an LLM key the agent still runs end to end and logs `ranking_skipped`. but diagnosis still requires a free key for access
 
 ### Configuration
-
-All config is read from `.env`.
 
 | Variable | Purpose |
 |---|---|
@@ -73,7 +87,7 @@ All config is read from `.env`.
 | `LLM_BASE_URL` | point at any OpenAI-compatible provider instead of Gemini |
 | `PROMETHEUS_URL` | override the Prometheus address for impact queries, defaults to localhost:9090 |
 
-## Break something on purpose
+## Testing
 
 ```sh
 ./chaos/inject.sh error-spike     # product-catalog starts failing, checkout degrades with it
@@ -99,21 +113,19 @@ cat postmortems/<incident-id>.md                  # the drafted postmortem
 
 `./chaos/inject.sh list` shows all eight available faults.
 
-## Running the tests
+## Actually Running the Tests
 
 ```sh
 make test
 ```
 
-Tests also run in GitHub Actions on every push.
-
 ## Evaluation
 
-The agent is scored like a benchmark, not by vibes. With the cluster and agent running:
+The agent is scored like a benchmark, with the cluster and agent running:
 
 ```sh
 make eval          # injects every scenario 3x, scores each diagnosis
 make eval-report   # prints the results table
 ```
 
-Each trial measures whether the agent flagged a commit touching the changed config, whether it retrieved the right runbook, and time from injection to brief. Results append to `eval/results.jsonl` so interrupted runs resume where they left off.
+Each trial measures whether the agent flagged a commit touching the changed config, whether it retrieved the right runbook, and time from injection to brief. Results are added to `eval/results.jsonl` so interrupted runs resume where they left off.
