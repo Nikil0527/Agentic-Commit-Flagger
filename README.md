@@ -12,13 +12,13 @@ Built and tested against a Kubernetes microservices environment where failures a
 
 ## How it works
 
-1. **Alert** — Prometheus detects a problem in the demo cluster and Alertmanager sends a webhook to the agent
-2. **Investigate** — the agent pulls recent commits and diffs from the GitHub repo
-3. **Diagnose** — an LLM ranks the commits most likely to have caused the incident, with reasoning
-4. **Runbook** — the matching on-call runbook is retrieved and its mitigation steps attached
-5. **Impact** — live Prometheus queries estimate how much traffic is failing and for how long
-6. **Brief** — everything lands in one incident brief, logged with the incident
-7. **Postmortem** — when a human resolves the incident, the agent drafts a postmortem from its own event log
+1. **Alert**: Prometheus detects a problem in the demo cluster and Alertmanager sends a webhook to the agent
+2. **Investigate**: the agent pulls recent commits and diffs from the GitHub repo
+3. **Diagnose**: an LLM ranks the commits most likely to have caused the incident, with reasoning
+4. **Runbook**: the matching on-call runbook is retrieved and its mitigation steps attached
+5. **Impact**: live Prometheus queries estimate how much traffic is failing and for how long
+6. **Brief**: everything lands in one incident brief, logged with the incident
+7. **Postmortem**: when a human resolves the incident, the agent drafts a postmortem from its own event log
 
 Every investigation step is appended to a per-incident JSONL log, which is what the postmortem is generated from.
 
@@ -35,7 +35,7 @@ Every investigation step is appended to a per-incident JSONL log, which is what 
 | Fault injection | Custom chaos CLI (`chaos/inject.sh`) driven by feature flags tracked in git |
 | Tests | pytest, 47 tests |
 
-Everything runs locally and free — no cloud account and no paid services.
+Everything runs locally and free with no cloud account and no paid services.
 
 ## Getting started
 
@@ -58,7 +58,20 @@ echo LLM_API_KEY=your-free-key-from-aistudio.google.com > .env
 make prometheus
 ```
 
-Without an LLM key the agent still runs end to end and logs `ranking_skipped` — diagnosis needs the free key.
+Without an LLM key the agent still runs end to end and logs `ranking_skipped`. Diagnosis needs the free key.
+
+### Configuration
+
+All config is read from `.env`.
+
+| Variable | Purpose |
+|---|---|
+| `LLM_API_KEY` | free key from aistudio.google.com, required for diagnosis |
+| `GITHUB_TOKEN` | optional, raises the GitHub API rate limit for repeated runs |
+| `GITHUB_REPO` | repo the agent scans for culprit commits, defaults to this one |
+| `LLM_MODEL` | override the model, defaults to a Gemini flash model |
+| `LLM_BASE_URL` | point at any OpenAI-compatible provider instead of Gemini |
+| `PROMETHEUS_URL` | override the Prometheus address for impact queries, defaults to localhost:9090 |
 
 ## Break something on purpose
 

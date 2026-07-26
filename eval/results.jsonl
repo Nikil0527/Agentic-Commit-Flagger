@@ -1,0 +1,2 @@
+{"alert_ok": true, "culprit_ok": true, "runbook_ok": true, "top_suspect": "284a45403f03", "runbook": "downstream-dependency-failure.md", "brief_seconds": 3.0, "scenario": "error-spike", "incident": "inc-20260726-015922-bd9366", "detect_seconds": 240, "ts": "2026-07-26T01:59:31"}
+{"alert_ok": true, "culprit_ok": false, "runbook_ok": true, "top_suspect": "212caa5be304", "runbook": "downstream-dependency-failure.md", "brief_seconds": 3.0, "scenario": "error-spike", "incident": "inc-20260726-021122-ee49ae", "detect_seconds": 225, "ts": "2026-07-26T02:11:25"}
