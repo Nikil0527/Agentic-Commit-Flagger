@@ -78,9 +78,16 @@ def score_events(events: list[dict], spec: dict, culprit_shas: set[str]) -> dict
     }
 
 
-def commits_touching(path: str, limit: int = 20) -> set[str]:
-    out = subprocess.run(["git", "log", f"-{limit}", "--format=%H", "--", path], capture_output=True, text=True, cwd=ROOT)
-    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+def git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT)
+
+
+def commit_fault(scenario: str) -> str | None:
+    # commit the injected flag change so the agent has a real culprit commit to find
+    git("add", "infra/demo-flags.json")
+    if git("commit", "-m", f"inject {scenario} fault").returncode != 0:
+        return None
+    return git("rev-parse", "HEAD").stdout.strip()
 
 
 def existing_incident_ids() -> set[str]:
@@ -94,9 +101,12 @@ def read_incident(incident_id: str) -> list[dict]:
 
 def run_trial(scenario: str, spec: dict) -> dict:
     known = existing_incident_ids()
-    culprits = commits_touching(spec["culprit_file"]) if spec["culprit_file"] else set()
+    base = git("rev-parse", "HEAD").stdout.strip()
 
     inject(scenario)
+    culprit_sha = commit_fault(scenario) if spec["culprit_file"] else None
+    culprits = {culprit_sha} if culprit_sha else set()
+
     t0 = time.time()
     print(f"  injected {scenario}, waiting for diagnosis...")
 
@@ -122,6 +132,8 @@ def run_trial(scenario: str, spec: dict) -> dict:
         result = {"scenario": scenario, "incident": None, "alert_ok": False, "culprit_ok": False, "runbook_ok": False, "detect_seconds": None, "brief_seconds": None, "ts": datetime.now().isoformat(timespec="seconds")}
 
     inject("reset")
+    # discard the fault commit and the reset edit so the branch never accumulates eval commits
+    git("reset", "--hard", base)
     print(f"  reset, cooling down {COOLDOWN // 60} min so alerts clear")
     time.sleep(COOLDOWN)
     return result
@@ -155,6 +167,11 @@ def main():
 
     if args.report:
         report()
+        return
+
+    # the eval commits faults then git reset --hard so a dirty tree would lose uncommitted work
+    if git("status", "--porcelain").stdout.strip():
+        print("working tree not clean, commit or stash first so the eval can reset safely")
         return
 
     httpx.get(f"{AGENT}/health", timeout=5).raise_for_status()

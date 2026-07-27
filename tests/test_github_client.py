@@ -1,9 +1,10 @@
 import json
+import subprocess
 
 import httpx
 import pytest
 
-from agent.github_client import GitHubClient
+from agent.github_client import GitHubClient, LocalGitClient, make_commit_source
 
 COMMITS = [
     {
@@ -71,3 +72,48 @@ async def test_api_error_raises():
     gh = GitHubClient(repo="me/repo", client=mock_client(handler))
     with pytest.raises(httpx.HTTPStatusError):
         await gh.recent_commits()
+
+
+def make_git_repo(path):
+    def run(*args):
+        subprocess.run(["git", *args], cwd=path, check=True, capture_output=True)
+
+    run("init", "-q")
+    run("config", "user.email", "t@t.t")
+    run("config", "user.name", "tester")
+    (path / "f.txt").write_text("one")
+    run("add", ".")
+    run("commit", "-q", "-m", "first commit")
+    (path / "f.txt").write_text("two")
+    run("add", ".")
+    run("commit", "-q", "-m", "second commit changes the file")
+    return path
+
+
+@pytest.mark.anyio
+async def test_local_git_reads_commits(tmp_path):
+    make_git_repo(tmp_path)
+    gc = LocalGitClient(repo_dir=str(tmp_path))
+    commits = await gc.recent_commits(limit=5)
+
+    assert commits[0]["message"] == "second commit changes the file"
+    assert commits[1]["message"] == "first commit"
+    assert len(commits[0]["sha"]) == 12
+    assert commits[0]["author"] == "tester"
+
+
+@pytest.mark.anyio
+async def test_local_git_diff_shows_changes(tmp_path):
+    make_git_repo(tmp_path)
+    gc = LocalGitClient(repo_dir=str(tmp_path))
+    top = (await gc.recent_commits(limit=1))[0]["sha"]
+    diff = await gc.commit_diff(top)
+    assert "f.txt" in diff
+    assert "two" in diff
+
+
+def test_make_commit_source_defaults_local(monkeypatch):
+    monkeypatch.delenv("GIT_SOURCE", raising=False)
+    assert isinstance(make_commit_source(), LocalGitClient)
+    monkeypatch.setenv("GIT_SOURCE", "github")
+    assert isinstance(make_commit_source(), GitHubClient)

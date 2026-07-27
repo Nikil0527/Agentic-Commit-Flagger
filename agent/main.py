@@ -16,7 +16,7 @@ load_dotenv()
 
 from agent.brief import build_brief
 from agent.diagnosis import CulpritRanker
-from agent.github_client import GitHubClient
+from agent.github_client import GitHubClient, make_commit_source
 from agent.impact import ImpactEstimator
 from agent.incidents import IncidentStore
 from agent.models import AlertmanagerWebhook
@@ -40,7 +40,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="commit-flagger-agent")
     store = IncidentStore(data_dir) if data_dir else IncidentStore()
-    gh = github or GitHubClient()
+    gh = github or make_commit_source()
     rb = runbooks or RunbookIndex()
     imp = impact or ImpactEstimator()
     pm = postmortems or PostmortemWriter()
