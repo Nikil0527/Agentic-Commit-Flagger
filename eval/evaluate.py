@@ -36,10 +36,11 @@ def inject(*args):
 RESULTS = Path(__file__).resolve().parent / "results.jsonl"
 INCIDENT_DIR = ROOT / "data" / "incidents"
 
+# slow-images is a valid chaos fault but not scored here because its span-metric
+# latency signal is intermittent on the local cluster and not deterministic enough to benchmark
 SCENARIOS = {
     "error-spike": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md"}, "culprit_file": "infra/demo-flags.json"},
     "payment-failure": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md"}, "culprit_file": "infra/demo-flags.json"},
-    "slow-images": {"alerts": {"HighP99Latency"}, "runbooks": {"high-latency.md"}, "culprit_file": "infra/demo-flags.json"},
     "memory-leak": {"alerts": {"PodMemorySaturation", "PodCrashLooping"}, "runbooks": {"memory-saturation.md", "pod-crash-loop.md"}, "culprit_file": "infra/demo-flags.json"},
     "crash-loop": {"alerts": {"PodCrashLooping", "PodMemorySaturation"}, "runbooks": {"pod-crash-loop.md", "memory-saturation.md"}, "culprit_file": None},
 }

@@ -38,7 +38,7 @@ spec:
           # server spans only with flagd excluded and 1500ms clears the healthy p99 of the busy services
           expr: >
             histogram_quantile(0.99, sum by (service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind="SPAN_KIND_SERVER", service_name!~".*flagd.*"}[5m]))) > 1500
-          for: 5m
+          for: 2m
           labels:
             severity: warning
             failure_class: latency
