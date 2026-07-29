@@ -128,4 +128,15 @@ make eval          # injects every scenario 3x, scores each diagnosis
 make eval-report   # prints the results table
 ```
 
-Each trial measures whether the agent flagged a commit touching the changed config, whether it retrieved the right runbook, and time from injection to brief. Results are added to `eval/results.jsonl` so interrupted runs resume where they left off.
+Each trial injects a fault, commits the change so there is a real culprit commit, waits for the agent to diagnose, then scores whether the top suspect was that commit, whether the right runbook was retrieved, and the time from injection to brief.
+
+Latest run, each scenario injected 3 times:
+
+| scenario | culprit found | runbook correct | median time to brief |
+|---|---|---|---|
+| error-spike | 3/3 | 3/3 | 4.8 min |
+| payment-failure | 3/3 | 3/3 | 3.8 min |
+| memory-leak | 3/3 | 3/3 | 5.8 min |
+| crash-loop | n/a | 2/3 | 4.5 min |
+
+Culprit commit identified in 9/9 scenarios that inject a committed change. Crash-loop has no culprit commit since it is a resource squeeze rather than a config change, and its aggressive out-of-memory fault occasionally trips its alert too fast to catch, which is why one trial timed out. Results append to `eval/results.jsonl` so interrupted runs resume where they left off.

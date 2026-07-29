@@ -11,6 +11,9 @@ postmortems/*
 !postmortems/example.md
 !postmortems/example-2.md
 
+# generated eval output
+eval/results.jsonl
+
 # secrets
 .env
 *.local

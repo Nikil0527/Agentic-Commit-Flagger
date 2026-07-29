@@ -39,8 +39,8 @@ INCIDENT_DIR = ROOT / "data" / "incidents"
 # slow-images is a valid chaos fault but not scored here because its span-metric
 # latency signal is intermittent on the local cluster and not deterministic enough to benchmark
 SCENARIOS = {
-    "error-spike": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md"}, "culprit_file": "infra/demo-flags.json"},
-    "payment-failure": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md"}, "culprit_file": "infra/demo-flags.json"},
+    "error-spike": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md", "bad-config-rollout.md"}, "culprit_file": "infra/demo-flags.json"},
+    "payment-failure": {"alerts": {"GrpcHighErrorRate"}, "runbooks": {"error-rate-spike.md", "downstream-dependency-failure.md", "bad-config-rollout.md"}, "culprit_file": "infra/demo-flags.json"},
     "memory-leak": {"alerts": {"PodMemorySaturation", "PodCrashLooping"}, "runbooks": {"memory-saturation.md", "pod-crash-loop.md"}, "culprit_file": "infra/demo-flags.json"},
     "crash-loop": {"alerts": {"PodCrashLooping", "PodMemorySaturation"}, "runbooks": {"pod-crash-loop.md", "memory-saturation.md"}, "culprit_file": None},
 }
@@ -129,11 +129,14 @@ def run_trial(scenario: str, spec: dict) -> dict:
             break
 
     if result is None:
-        result = {"scenario": scenario, "incident": None, "alert_ok": False, "culprit_ok": False, "runbook_ok": False, "detect_seconds": None, "brief_seconds": None, "ts": datetime.now().isoformat(timespec="seconds")}
+        # a scenario with no culprit commit stays n/a for culprit even on timeout
+        culprit_default = None if spec["culprit_file"] is None else False
+        result = {"scenario": scenario, "incident": None, "alert_ok": False, "culprit_ok": culprit_default, "runbook_ok": False, "detect_seconds": None, "brief_seconds": None, "ts": datetime.now().isoformat(timespec="seconds")}
 
     inject("reset")
-    # discard the fault commit and the reset edit so the branch never accumulates eval commits
-    git("reset", "--hard", base)
+    # drop the fault commit and restore the flag file without touching generated results
+    git("reset", base)
+    git("checkout", "--", "infra/demo-flags.json")
     print(f"  reset, cooling down {COOLDOWN // 60} min so alerts clear")
     time.sleep(COOLDOWN)
     return result
@@ -143,16 +146,21 @@ def report():
     if not RESULTS.exists():
         print("no results yet")
         return
-    rows = [json.loads(line) for line in RESULTS.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [json.loads(line) for line in RESULTS.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
     print("| scenario | trials | culprit found | runbook correct | median time to brief |")
     print("|---|---|---|---|---|")
     for scenario in SCENARIOS:
         rs = [r for r in rows if r["scenario"] == scenario]
         if not rs:
             continue
-        culprit_rs = [r for r in rs if r.get("culprit_ok") is not None]
-        culprit = f"{sum(bool(r['culprit_ok']) for r in culprit_rs)}/{len(culprit_rs)}" if culprit_rs else "n/a"
-        runbook = f"{sum(bool(r['runbook_ok']) for r in rs)}/{len(rs)}"
+        spec = SCENARIOS[scenario]
+        if spec["culprit_file"] is None:
+            culprit = "n/a"
+        else:
+            culprit_rs = [r for r in rs if r.get("culprit_ok") is not None]
+            culprit = f"{sum(bool(r['culprit_ok']) for r in culprit_rs)}/{len(culprit_rs)}" if culprit_rs else "n/a"
+        # score runbook from the recorded match so an expanded accepted set applies to old rows too
+        runbook = f"{sum(1 for r in rs if r.get('runbook') in spec['runbooks'])}/{len(rs)}"
         times = [r["detect_seconds"] for r in rs if r.get("detect_seconds")]
         med = f"{round(median(times) / 60, 1)} min" if times else "n/a"
         print(f"| {scenario} | {len(rs)} | {culprit} | {runbook} | {med} |")
@@ -169,8 +177,9 @@ def main():
         report()
         return
 
-    # the eval commits faults then git reset --hard so a dirty tree would lose uncommitted work
-    if git("status", "--porcelain").stdout.strip():
+    # the eval commits faults and rewinds git so a dirty tree could lose uncommitted work
+    dirty = [l for l in git("status", "--porcelain").stdout.splitlines() if "results.jsonl" not in l]
+    if dirty:
         print("working tree not clean, commit or stash first so the eval can reset safely")
         return
 
