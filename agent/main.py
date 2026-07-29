@@ -41,6 +41,7 @@ def create_app(
     app = FastAPI(title="commit-flagger-agent")
     store = IncidentStore(data_dir) if data_dir else IncidentStore()
     gh = github or make_commit_source()
+    log.info("commit source: %s", gh.repo)
     rb = runbooks or RunbookIndex()
     imp = impact or ImpactEstimator()
     pm = postmortems or PostmortemWriter()
