@@ -222,6 +222,19 @@ def test_resolve_unknown_incident_404(client):
     assert client.post("/incidents/inc-nope/resolve").status_code == 404
 
 
+def test_incidents_filter_by_status(client):
+    client.post("/webhook/alertmanager", json=firing_payload(group_key="g1"))
+    open_id = client.post("/webhook/alertmanager", json=firing_payload(group_key="g2")).json()["incident"]
+    client.post("/webhook/alertmanager", json=firing_payload(group_key="g1", status="resolved"))
+
+    open_only = client.get("/incidents", params={"status": "open"}).json()
+    assert [r["id"] for r in open_only] == [open_id]
+
+    resolved_only = client.get("/incidents", params={"status": "resolved"}).json()
+    assert all(r["status"] == "resolved" for r in resolved_only)
+    assert len(client.get("/incidents").json()) == 2
+
+
 def test_incident_detail_returns_timeline(client):
     incident_id = client.post("/webhook/alertmanager", json=firing_payload()).json()["incident"]
     r = client.get(f"/incidents/{incident_id}")

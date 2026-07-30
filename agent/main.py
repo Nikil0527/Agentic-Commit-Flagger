@@ -151,8 +151,11 @@ def create_app(
         return events
 
     @app.get("/incidents")
-    def incidents():
-        return store.summary()
+    def incidents(status: str | None = None):
+        rows = store.summary()
+        if status:
+            rows = [r for r in rows if r["status"] == status]
+        return rows
 
     @app.get("/incidents/{incident_id}")
     def incident_detail(incident_id: str):
