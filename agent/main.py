@@ -174,7 +174,7 @@ def create_app(
 
     @app.get("/health")
     def health():
-        return {"ok": True}
+        return {"ok": True, "commit_source": gh.repo, "diagnosis": "enabled" if ranker else "disabled"}
 
     return app
 

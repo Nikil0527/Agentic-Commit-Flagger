@@ -77,7 +77,10 @@ def client(tmp_path):
 
 
 def test_health(client):
-    assert client.get("/health").json() == {"ok": True}
+    body = client.get("/health").json()
+    assert body["ok"] is True
+    assert body["commit_source"] == "me/repo"
+    assert body["diagnosis"] == "disabled"
 
 
 def test_firing_creates_incident(client):
