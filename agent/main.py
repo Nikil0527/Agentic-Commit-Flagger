@@ -175,6 +175,13 @@ def create_app(
         log.info("[%s] resolved, postmortem at %s", incident_id, path)
         return {"incident": incident_id, "closed_now": closed_now, "postmortem": str(path)}
 
+    @app.get("/")
+    def root():
+        return {
+            "service": "commit-flagger-agent",
+            "endpoints": ["/health", "/incidents", "/incidents/{id}", "/incidents/{id}/resolve", "/webhook/alertmanager"],
+        }
+
     @app.get("/health")
     def health():
         return {"ok": True, "commit_source": gh.repo, "diagnosis": "enabled" if ranker else "disabled"}

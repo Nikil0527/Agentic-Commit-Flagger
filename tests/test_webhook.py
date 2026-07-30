@@ -83,6 +83,12 @@ def test_health(client):
     assert body["diagnosis"] == "disabled"
 
 
+def test_root_lists_endpoints(client):
+    body = client.get("/").json()
+    assert body["service"] == "commit-flagger-agent"
+    assert "/webhook/alertmanager" in body["endpoints"]
+
+
 def test_firing_creates_incident(client):
     r = client.post("/webhook/alertmanager", json=firing_payload())
     assert r.status_code == 200
