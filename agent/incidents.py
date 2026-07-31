@@ -76,12 +76,15 @@ class IncidentStore:
             if not events:
                 continue
             first = events[0]
+            ranked = next((e for e in events if e.get("event") == "culprits_ranked"), None)
+            suspects = ranked["data"].get("suspects", []) if ranked else []
             out.append({
                 "id": f.stem,
                 "status": "resolved" if any(e.get("event") == "resolved" for e in events) else "open",
                 "alertname": first.get("data", {}).get("alertname", ""),
                 "started": first.get("ts", ""),
                 "events": len(events),
+                "culprit": suspects[0]["sha"] if suspects else None,
             })
         return out
 

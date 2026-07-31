@@ -203,6 +203,9 @@ def test_new_incident_ranks_culprits(tmp_path):
     assert "impact: ~12% of requests failing" in brief["data"]["text"]
     assert any(e["event"] == "impact_estimated" for e in events)
 
+    # the blamed commit shows up in the incident list without opening the incident
+    assert client.get("/incidents").json()[0]["culprit"] == "abc123"
+
 
 def test_resolve_writes_postmortem(tmp_path):
     client = TestClient(create_app(
