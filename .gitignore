@@ -1,23 +1,20 @@
-# python
 __pycache__/
 *.pyc
 .venv/
 venv/
 .pytest_cache/
 
-# incident logs and generated postmortems, keep a couple as samples
 data/
 postmortems/*
 !postmortems/example.md
 !postmortems/example-2.md
 
-# generated eval output
 eval/results.jsonl
 
-# secrets
 .env
 *.local
 
-# editor
 .vscode/
 .idea/
+
+docs/
