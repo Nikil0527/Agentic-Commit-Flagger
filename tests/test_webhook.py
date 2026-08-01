@@ -231,6 +231,12 @@ def test_resolve_unknown_incident_404(client):
     assert client.post("/incidents/inc-nope/resolve").status_code == 404
 
 
+def test_incidents_listed_newest_first(client):
+    ids = [client.post("/webhook/alertmanager", json=firing_payload(group_key=f"g{i}")).json()["incident"] for i in range(3)]
+    listed = [r["id"] for r in client.get("/incidents").json()]
+    assert listed == sorted(ids, reverse=True)
+
+
 def test_incidents_filter_by_status(client):
     client.post("/webhook/alertmanager", json=firing_payload(group_key="g1"))
     open_id = client.post("/webhook/alertmanager", json=firing_payload(group_key="g2")).json()["incident"]

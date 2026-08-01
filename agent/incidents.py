@@ -71,7 +71,8 @@ class IncidentStore:
 
     def summary(self) -> list[dict]:
         out = []
-        for f in sorted(self.data_dir.glob("*.jsonl")):
+        # newest first since incident ids are timestamp prefixed
+        for f in sorted(self.data_dir.glob("*.jsonl"), reverse=True):
             events = self._read_events(f)
             if not events:
                 continue
