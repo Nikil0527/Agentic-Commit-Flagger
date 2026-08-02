@@ -79,11 +79,13 @@ class IncidentStore:
             first = events[0]
             ranked = next((e for e in events if e.get("event") == "culprits_ranked"), None)
             suspects = ranked["data"].get("suspects", []) if ranked else []
+            resolved = next((e for e in events if e.get("event") == "resolved"), None)
             out.append({
                 "id": f.stem,
-                "status": "resolved" if any(e.get("event") == "resolved" for e in events) else "open",
+                "status": "resolved" if resolved else "open",
                 "alertname": first.get("data", {}).get("alertname", ""),
                 "started": first.get("ts", ""),
+                "resolved_at": resolved["ts"] if resolved else None,
                 "events": len(events),
                 "culprit": suspects[0]["sha"] if suspects else None,
             })

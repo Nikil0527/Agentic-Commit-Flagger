@@ -109,11 +109,14 @@ def test_repeat_firing_is_same_incident(client):
 
 def test_resolved_closes_incident(client):
     client.post("/webhook/alertmanager", json=firing_payload())
+    assert client.get("/incidents").json()[0]["resolved_at"] is None
+
     r = client.post("/webhook/alertmanager", json=firing_payload(status="resolved"))
     assert r.status_code == 200
 
     incidents = client.get("/incidents").json()
     assert incidents[0]["status"] == "resolved"
+    assert incidents[0]["resolved_at"]
 
 
 def test_resolved_without_incident_is_noop(client):
