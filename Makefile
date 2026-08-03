@@ -1,6 +1,6 @@
 CLUSTER_NAME = commit-flagger
 
-.PHONY: cluster-up cluster-down status deploy monitoring alerts agent test eval eval-report grafana prometheus alertmanager
+.PHONY: cluster-up cluster-down status deploy monitoring alerts agent test eval eval-report docker-build docker-run grafana prometheus alertmanager
 
 cluster-up:
 	kind create cluster --name $(CLUSTER_NAME) --config infra/kind-config.yaml
@@ -37,6 +37,12 @@ eval:
 
 eval-report:
 	python eval/evaluate.py --report
+
+docker-build:
+	docker build -t commit-flagger-agent .
+
+docker-run:
+	docker run --rm -p 8000:8000 --env-file .env commit-flagger-agent
 
 # UIs are not exposed outside the cluster so port forward to reach them locally
 grafana:
