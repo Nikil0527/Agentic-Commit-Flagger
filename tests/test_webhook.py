@@ -20,12 +20,31 @@ class FakeGitHub:
 
 
 class FakeRanker:
+    def __init__(self):
+        self.diffs_seen = None
+
     async def rank(self, alert, commits, diffs):
+        self.diffs_seen = diffs
         return {
             "suspects": [{"sha": commits[0]["sha"], "confidence": "high", "reasoning": "test"}],
             "assessment": "test assessment",
             "model": "fake",
         }
+
+
+class FlakyDiffGitHub:
+    repo = "me/repo"
+
+    async def recent_commits(self, limit=20):
+        return [
+            {"sha": "good1", "message": "ok", "author": "me", "date": "2026-07-13T00:00:00Z"},
+            {"sha": "bad2", "message": "diff blows up", "author": "me", "date": "2026-07-12T00:00:00Z"},
+        ]
+
+    async def commit_diff(self, sha, max_chars=4000):
+        if sha == "bad2":
+            raise RuntimeError("git show failed")
+        return "+ a good diff"
 
 
 class FakeImpact:
@@ -232,6 +251,20 @@ def test_resolve_writes_postmortem(tmp_path):
 
 def test_resolve_unknown_incident_404(client):
     assert client.post("/incidents/inc-nope/resolve").status_code == 404
+
+
+def test_one_bad_diff_does_not_abort_ranking(tmp_path):
+    ranker = FakeRanker()
+    client = TestClient(create_app(
+        data_dir=tmp_path, github=FlakyDiffGitHub(), ranker=ranker,
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
+    client.post("/webhook/alertmanager", json=firing_payload())
+
+    # ranking still ran, with the good diff kept and the failed one skipped
+    events = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
+    assert any(e["event"] == "culprits_ranked" for e in events)
+    assert set(ranker.diffs_seen) == {"good1"}
 
 
 def test_incidents_listed_newest_first(client):

@@ -76,6 +76,13 @@ make prometheus
 
 Without an LLM key the agent still runs end to end and logs `ranking_skipped`. but diagnosis still requires a free key for access
 
+Or run the agent as a container:
+
+```sh
+make docker-build
+make docker-run    # reads .env for the key, set GIT_SOURCE=github to read commits over the api
+```
+
 ### Configuration
 
 | Variable | Purpose |

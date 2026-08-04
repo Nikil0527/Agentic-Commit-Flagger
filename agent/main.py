@@ -74,13 +74,13 @@ def create_app(
             store.log_step(incident_id, "ranking_skipped", {"reason": "no llm api key"}, group_key)
             return
 
-        try:
-            diffs = {}
-            for c in commits[:DIFF_FETCH_LIMIT]:
+        diffs = {}
+        for c in commits[:DIFF_FETCH_LIMIT]:
+            try:
                 diffs[c["sha"]] = await gh.commit_diff(c["sha"], max_chars=3000)
-        except Exception as e:
-            store.log_step(incident_id, "ranking_failed", {"error": f"diff fetch {type(e).__name__} {e}"}, group_key)
-            return
+            except Exception as e:
+                # one bad diff should not sink the whole ranking so skip it and keep the rest
+                log.warning("[%s] diff fetch failed for %s: %s", incident_id, c["sha"], e)
 
         result = None
         err = ""
