@@ -13,4 +13,8 @@ COPY agent/ agent/
 COPY runbooks/ runbooks/
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
+    CMD python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=2).raise_for_status()"
+
 CMD ["python", "-m", "uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8000"]
