@@ -253,6 +253,31 @@ def test_resolve_unknown_incident_404(client):
     assert client.post("/incidents/inc-nope/resolve").status_code == 404
 
 
+def test_no_commits_skips_ranking(tmp_path):
+    class EmptyGitHub:
+        repo = "me/repo"
+
+        async def recent_commits(self, limit=20):
+            return []
+
+        async def commit_diff(self, sha, max_chars=4000):
+            return ""
+
+    class ExplodingRanker:
+        async def rank(self, alert, commits, diffs):
+            raise AssertionError("ranker must not be called when there are no commits")
+
+    client = TestClient(create_app(
+        data_dir=tmp_path, github=EmptyGitHub(), ranker=ExplodingRanker(),
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
+    client.post("/webhook/alertmanager", json=firing_payload())
+
+    events = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
+    assert any(e["event"] == "ranking_skipped" and e["data"]["reason"] == "no commits to rank" for e in events)
+    assert not any(e["event"] == "culprits_ranked" for e in events)
+
+
 def test_one_bad_diff_does_not_abort_ranking(tmp_path):
     ranker = FakeRanker()
     client = TestClient(create_app(

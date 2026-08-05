@@ -70,6 +70,10 @@ def create_app(
         store.log_step(incident_id, "commits_fetched", {"repo": gh.repo, "commits": commits}, group_key)
         log.info("[%s] fetched %d recent commits from %s", incident_id, len(commits), gh.repo)
 
+        if not commits:
+            store.log_step(incident_id, "ranking_skipped", {"reason": "no commits to rank"}, group_key)
+            return
+
         if ranker is None:
             store.log_step(incident_id, "ranking_skipped", {"reason": "no llm api key"}, group_key)
             return
