@@ -103,7 +103,7 @@ def create_app(
             return
 
         store.log_step(incident_id, "culprits_ranked", result, group_key)
-        top = result["suspects"][0]["sha"] if result.get("suspects") else "none"
+        top = result["suspects"][0].get("sha", "none") if result.get("suspects") else "none"
         log.info("[%s] culprit ranking done, top suspect: %s", incident_id, top)
 
         query = " ".join([

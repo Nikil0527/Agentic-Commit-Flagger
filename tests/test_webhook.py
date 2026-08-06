@@ -253,6 +253,21 @@ def test_resolve_unknown_incident_404(client):
     assert client.post("/incidents/inc-nope/resolve").status_code == 404
 
 
+def test_suspect_without_sha_does_not_crash(tmp_path):
+    class NoShaRanker:
+        async def rank(self, alert, commits, diffs):
+            return {"suspects": [{"confidence": "high", "reasoning": "forgot the sha"}], "assessment": "x", "model": "fake"}
+
+    client = TestClient(create_app(
+        data_dir=tmp_path, github=FakeGitHub(), ranker=NoShaRanker(),
+        impact=FakeImpact(), postmortems=make_pm(tmp_path),
+    ))
+    client.post("/webhook/alertmanager", json=firing_payload())
+
+    events = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
+    assert any(e["event"] == "brief_posted" for e in events)
+
+
 def test_no_commits_skips_ranking(tmp_path):
     class EmptyGitHub:
         repo = "me/repo"
