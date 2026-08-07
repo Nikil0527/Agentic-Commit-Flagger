@@ -84,10 +84,11 @@ class IncidentStore:
                 "id": f.stem,
                 "status": "resolved" if resolved else "open",
                 "alertname": first.get("data", {}).get("alertname", ""),
+                "failure_class": first.get("data", {}).get("labels", {}).get("failure_class", ""),
                 "started": first.get("ts", ""),
                 "resolved_at": resolved["ts"] if resolved else None,
                 "events": len(events),
-                "culprit": suspects[0]["sha"] if suspects else None,
+                "culprit": suspects[0].get("sha") if suspects else None,
             })
         return out
 

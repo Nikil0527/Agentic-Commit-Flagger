@@ -117,6 +117,7 @@ def test_firing_creates_incident(client):
     assert len(incidents) == 1
     assert incidents[0]["status"] == "open"
     assert incidents[0]["alertname"] == "GrpcHighErrorRate"
+    assert incidents[0]["failure_class"] == "error-spike"
 
 
 def test_repeat_firing_is_same_incident(client):
